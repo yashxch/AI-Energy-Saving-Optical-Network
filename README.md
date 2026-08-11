@@ -2,7 +2,7 @@
 
 An intelligent, autonomous energy optimization and network management platform modeled after Nokia 1830 PSS optical transport network architectures.
 
-## 🌟 Key Features
+##  Key Features
 
 - **100 Optical Devices Telemetry Simulator**: Real-time simulation of 800G Muxponders, Variable Gain EDFA Amplifiers, ROADMs, and Optical Filter Cards across 8 major US network nodes (NYC, BOS, CHI, WDC, ATL, DAL, SFO, LAX).
 - **ML Traffic Prediction Engine**: Time-series forecasting for network traffic over 5m, 1h, and 24h horizons.
@@ -15,7 +15,7 @@ An intelligent, autonomous energy optimization and network management platform m
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 optical-network-power-saver/
@@ -38,7 +38,7 @@ optical-network-power-saver/
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
