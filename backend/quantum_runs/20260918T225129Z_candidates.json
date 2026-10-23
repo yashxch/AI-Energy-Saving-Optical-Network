@@ -1,0 +1,66 @@
+[
+  {
+    "variable": "x0",
+    "device_id": "TRX-800G-006",
+    "device_type": "800G Transponder",
+    "action": "SLEEP",
+    "traffic": 11.9,
+    "power_saving_w": 305.0
+  },
+  {
+    "variable": "x1",
+    "device_id": "TRX-800G-024",
+    "device_type": "800G Transponder",
+    "action": "SLEEP",
+    "traffic": 11.9,
+    "power_saving_w": 305.0
+  },
+  {
+    "variable": "x2",
+    "device_id": "TRX-800G-030",
+    "device_type": "800G Transponder",
+    "action": "SLEEP",
+    "traffic": 10.4,
+    "power_saving_w": 305.0
+  },
+  {
+    "variable": "x3",
+    "device_id": "TRX-800G-036",
+    "device_type": "800G Transponder",
+    "action": "SLEEP",
+    "traffic": 14.8,
+    "power_saving_w": 305.0
+  },
+  {
+    "variable": "x4",
+    "device_id": "TRX-800G-048",
+    "device_type": "800G Transponder",
+    "action": "SLEEP",
+    "traffic": 15.3,
+    "power_saving_w": 305.0
+  },
+  {
+    "variable": "x5",
+    "device_id": "EDFA-AMP-006",
+    "device_type": "EDFA Amplifier",
+    "action": "REDUCE_GAIN",
+    "traffic": 0.0,
+    "power_saving_w": 65.0
+  },
+  {
+    "variable": "x6",
+    "device_id": "EDFA-AMP-012",
+    "device_type": "EDFA Amplifier",
+    "action": "REDUCE_GAIN",
+    "traffic": 0.0,
+    "power_saving_w": 65.0
+  },
+  {
+    "variable": "x7",
+    "device_id": "EDFA-AMP-018",
+    "device_type": "EDFA Amplifier",
+    "action": "REDUCE_GAIN",
+    "traffic": 0.0,
+    "power_saving_w": 65.0
+  }
+]

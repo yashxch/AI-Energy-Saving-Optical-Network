@@ -1,0 +1,15 @@
+# Local Nokia NSP credentials - never commit
+backend/app/config/nokia_credentials.json
+backend/.env
+.env
+.env.*
+*.pem
+*.key
+
+venv/
+.venv/
+__pycache__/
+.pytest_cache/
+.vscode/
+node_modules/
+.next/

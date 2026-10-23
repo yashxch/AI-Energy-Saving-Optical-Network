@@ -1,0 +1,697 @@
+{
+  "experiment": "Phase 5A controlled scalability evaluation",
+  "hardware_used": false,
+  "parameter_grid": "9x9",
+  "max_actions": 4,
+  "instances": [
+    {
+      "candidate_count": 4,
+      "total_binary_states": 16,
+      "feasible_states": 16,
+      "binary_state_growth_vs_previous": null,
+      "qubo": {
+        "decision_variables": 4,
+        "slack_variables": 3,
+        "total_logical_qubits": 7
+      },
+      "exact": {
+        "saving_w": 1222.65,
+        "exact_runtime_ms": 0.02440001117065549,
+        "runtime_ms": 0.02440001117065549,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true
+      },
+      "simulated_annealing": {
+        "saving_w": 1222.65,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true,
+        "sa_runtime_ms": 1.091000041924417,
+        "approximation_ratio": 1.0,
+        "optimality_gap_w": 0.0
+      },
+      "local_qaoa": {
+        "saving_w": 612.35,
+        "qaoa_parameter_search_runtime_ms": 4.268000018782914,
+        "qaoa_statevector_runtime_ms": 0.15480001457035542,
+        "qaoa_total_runtime_ms": 4.422800033353269,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true,
+        "beta": 2.792526803190927,
+        "gamma": 2.443460952792061,
+        "parameter_combinations_evaluated": 81,
+        "expected_qubo_energy": 5286.839335556022,
+        "approximation_ratio": 0.5008383429436061,
+        "optimality_gap_w": 610.3000000000001
+      }
+    },
+    {
+      "candidate_count": 6,
+      "total_binary_states": 64,
+      "feasible_states": 57,
+      "binary_state_growth_vs_previous": {
+        "factor": 4.0,
+        "additional_states": 48
+      },
+      "qubo": {
+        "decision_variables": 6,
+        "slack_variables": 3,
+        "total_logical_qubits": 9
+      },
+      "exact": {
+        "saving_w": 1222.65,
+        "exact_runtime_ms": 0.04139996599406004,
+        "runtime_ms": 0.04139996599406004,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true
+      },
+      "simulated_annealing": {
+        "saving_w": 1219.55,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x4",
+            "device_id": "TRX-800G-017",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.25,
+            "power_saving_w": 303.55
+          },
+          {
+            "variable": "x5",
+            "device_id": "TRX-800G-020",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 12.45,
+            "power_saving_w": 304.05
+          }
+        ],
+        "feasible": true,
+        "sa_runtime_ms": 1.3022999628446996,
+        "approximation_ratio": 0.9974645237803131,
+        "optimality_gap_w": 3.1000000000001364
+      },
+      "local_qaoa": {
+        "saving_w": 1219.95,
+        "qaoa_parameter_search_runtime_ms": 4.476399975828826,
+        "qaoa_statevector_runtime_ms": 0.3454000107012689,
+        "qaoa_total_runtime_ms": 4.821799986530095,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          },
+          {
+            "variable": "x4",
+            "device_id": "TRX-800G-017",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.25,
+            "power_saving_w": 303.55
+          },
+          {
+            "variable": "x5",
+            "device_id": "TRX-800G-020",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 12.45,
+            "power_saving_w": 304.05
+          }
+        ],
+        "feasible": true,
+        "beta": 2.0943951023931953,
+        "gamma": 2.443460952792061,
+        "parameter_combinations_evaluated": 81,
+        "expected_qubo_energy": 7126.532331612587,
+        "approximation_ratio": 0.9977916820022082,
+        "optimality_gap_w": 2.7000000000000455
+      }
+    },
+    {
+      "candidate_count": 8,
+      "total_binary_states": 256,
+      "feasible_states": 163,
+      "binary_state_growth_vs_previous": {
+        "factor": 4.0,
+        "additional_states": 192
+      },
+      "qubo": {
+        "decision_variables": 8,
+        "slack_variables": 3,
+        "total_logical_qubits": 11
+      },
+      "exact": {
+        "saving_w": 1222.65,
+        "exact_runtime_ms": 0.14159997226670384,
+        "runtime_ms": 0.14159997226670384,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true
+      },
+      "simulated_annealing": {
+        "saving_w": 1220.75,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          },
+          {
+            "variable": "x6",
+            "device_id": "TRX-800G-032",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 9.3,
+            "power_saving_w": 303.0
+          }
+        ],
+        "feasible": true,
+        "sa_runtime_ms": 1.3911999994888902,
+        "approximation_ratio": 0.9984459984459984,
+        "optimality_gap_w": 1.900000000000091
+      },
+      "local_qaoa": {
+        "saving_w": 915.5,
+        "qaoa_parameter_search_runtime_ms": 11.518299987073988,
+        "qaoa_statevector_runtime_ms": 1.4566999743692577,
+        "qaoa_total_runtime_ms": 12.974999961443245,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x5",
+            "device_id": "TRX-800G-020",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 12.45,
+            "power_saving_w": 304.05
+          }
+        ],
+        "feasible": true,
+        "beta": 0.6981317007977318,
+        "gamma": -3.141592653589793,
+        "parameter_combinations_evaluated": 81,
+        "expected_qubo_energy": 11575.25985417345,
+        "approximation_ratio": 0.7487833803623277,
+        "optimality_gap_w": 307.1500000000001
+      }
+    },
+    {
+      "candidate_count": 10,
+      "total_binary_states": 1024,
+      "feasible_states": 386,
+      "binary_state_growth_vs_previous": {
+        "factor": 4.0,
+        "additional_states": 768
+      },
+      "qubo": {
+        "decision_variables": 10,
+        "slack_variables": 3,
+        "total_logical_qubits": 13
+      },
+      "exact": {
+        "saving_w": 1222.65,
+        "exact_runtime_ms": 0.5003000260330737,
+        "runtime_ms": 0.5003000260330737,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true
+      },
+      "simulated_annealing": {
+        "saving_w": 1220.75,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x8",
+            "device_id": "TRX-800G-025",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 13.8,
+            "power_saving_w": 303.9
+          }
+        ],
+        "feasible": true,
+        "sa_runtime_ms": 1.2618000037036836,
+        "approximation_ratio": 0.9984459984459984,
+        "optimality_gap_w": 1.900000000000091
+      },
+      "local_qaoa": {
+        "saving_w": 1217.85,
+        "qaoa_parameter_search_runtime_ms": 58.024599973578006,
+        "qaoa_statevector_runtime_ms": 7.290699984878302,
+        "qaoa_total_runtime_ms": 65.31529995845631,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x5",
+            "device_id": "TRX-800G-020",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 12.45,
+            "power_saving_w": 304.05
+          },
+          {
+            "variable": "x9",
+            "device_id": "TRX-800G-003",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 16.35,
+            "power_saving_w": 302.35
+          }
+        ],
+        "feasible": true,
+        "beta": 0.6981317007977318,
+        "gamma": -3.141592653589793,
+        "parameter_combinations_evaluated": 81,
+        "expected_qubo_energy": 19566.34259636952,
+        "approximation_ratio": 0.996074101337259,
+        "optimality_gap_w": 4.800000000000182
+      }
+    },
+    {
+      "candidate_count": 11,
+      "total_binary_states": 2048,
+      "feasible_states": 562,
+      "binary_state_growth_vs_previous": {
+        "factor": 2.0,
+        "additional_states": 1024
+      },
+      "qubo": {
+        "decision_variables": 11,
+        "slack_variables": 3,
+        "total_logical_qubits": 14
+      },
+      "exact": {
+        "saving_w": 1222.65,
+        "exact_runtime_ms": 0.5638000438921154,
+        "runtime_ms": 0.5638000438921154,
+        "selected_devices": [
+          {
+            "variable": "x0",
+            "device_id": "TRX-800G-028",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 8.25,
+            "power_saving_w": 306.55
+          },
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          }
+        ],
+        "feasible": true
+      },
+      "simulated_annealing": {
+        "saving_w": 1220.0,
+        "selected_devices": [
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x3",
+            "device_id": "TRX-800G-010",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 18.0,
+            "power_saving_w": 305.8
+          },
+          {
+            "variable": "x8",
+            "device_id": "TRX-800G-025",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 13.8,
+            "power_saving_w": 303.9
+          }
+        ],
+        "feasible": true,
+        "sa_runtime_ms": 1.2966999784111977,
+        "approximation_ratio": 0.9978325767799451,
+        "optimality_gap_w": 2.650000000000091
+      },
+      "local_qaoa": {
+        "saving_w": 1215.65,
+        "qaoa_parameter_search_runtime_ms": 263.60740000382066,
+        "qaoa_statevector_runtime_ms": 16.0844000056386,
+        "qaoa_total_runtime_ms": 279.69180000945926,
+        "selected_devices": [
+          {
+            "variable": "x1",
+            "device_id": "TRX-800G-023",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 14.2,
+            "power_saving_w": 304.9
+          },
+          {
+            "variable": "x2",
+            "device_id": "TRX-800G-006",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 10.1,
+            "power_saving_w": 305.4
+          },
+          {
+            "variable": "x6",
+            "device_id": "TRX-800G-032",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 9.3,
+            "power_saving_w": 303.0
+          },
+          {
+            "variable": "x9",
+            "device_id": "TRX-800G-003",
+            "device_type": "800G Transponder",
+            "action": "SLEEP",
+            "traffic": 16.35,
+            "power_saving_w": 302.35
+          }
+        ],
+        "feasible": true,
+        "beta": 2.792526803190927,
+        "gamma": -2.443460952792061,
+        "parameter_combinations_evaluated": 81,
+        "expected_qubo_energy": 27693.982847045496,
+        "approximation_ratio": 0.9942747311168364,
+        "optimality_gap_w": 7.0
+      }
+    }
+  ],
+  "methodology_note": "This is a controlled local scalability experiment using the existing simulated optical-network candidate population. It does not represent physical network measurements and does not demonstrate quantum advantage. Local QAOA results use a NumPy/statevector simulation and must not be interpreted as IBM Quantum hardware results.",
+  "limitations": [
+    "All instances are deterministic candidate prefixes from one controlled population.",
+    "Runtime values are local experimental measurements and vary by machine load.",
+    "Local QAOA uses a 9x9 parameter search and is not an IBM hardware measurement."
+  ]
+}

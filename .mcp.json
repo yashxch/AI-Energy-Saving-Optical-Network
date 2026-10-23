@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"glean_managed/gemini": {
+			"type": "http",
+			"url": "https://nokiapoc-be.glean.com/mcp/managed/gemini"
+		}
+	}
+}
