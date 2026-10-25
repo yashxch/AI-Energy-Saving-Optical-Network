@@ -1,5 +1,6 @@
 # Local Nokia NSP credentials - never commit
 backend/app/config/nokia_credentials.json
+backend/.quantum_runs/
 backend/.env
 .env
 .env.*

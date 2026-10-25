@@ -52,7 +52,11 @@ export const Header: React.FC<HeaderProps> = ({ accounting, alarms, onRefresh, a
           <div className="flex items-center gap-3">
             <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
               <Zap className="w-5 h-5 animate-pulse" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${
+                telemetrySource?.data_origin === 'project_csv'
+                  ? 'bg-slate-400'
+                  : 'bg-emerald-400 animate-ping'
+              }`} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -64,7 +68,9 @@ export const Header: React.FC<HeaderProps> = ({ accounting, alarms, onRefresh, a
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Autonomous Optical Telemetry Monitoring • Policy-Validated Energy Optimization
+                {telemetrySource?.data_origin === 'project_csv'
+                  ? 'Historical project-folder CSV telemetry • Read-only analysis'
+                  : 'Autonomous Optical Telemetry Monitoring • Policy-Validated Energy Optimization'}
               </p>
             </div>
           </div>
@@ -115,15 +121,13 @@ export const Header: React.FC<HeaderProps> = ({ accounting, alarms, onRefresh, a
                 style={{ colorScheme: 'dark' }}
               >
                 <option value="simulator" className="bg-slate-900 text-white">Simulator</option>
-                <option value="nokia" className="bg-slate-900 text-white">
-                  {telemetrySource?.data_origin === 'csv_snapshot' ? 'Nokia / CSV snapshot' : 'Nokia / Live PMDATA'}
-                </option>
+                <option value="nokia" className="bg-slate-900 text-white">Nokia / project-folder CSV files</option>
               </select>
               <div className="text-[10px] text-slate-400">
                 {switchingSource
                   ? 'Switching…'
-                  : telemetrySource?.data_origin === 'csv_snapshot'
-                    ? `${telemetrySource.device_count} elements • 15-minute CSV snapshot`
+                  : telemetrySource?.data_origin === 'project_csv'
+                    ? `${telemetrySource.device_count} CSV devices • historical data`
                     : `${telemetrySource?.device_count ?? 0} devices • ${telemetrySource?.refresh_status ?? 'unknown'}`}
               </div>
             </div>
@@ -137,8 +141,8 @@ export const Header: React.FC<HeaderProps> = ({ accounting, alarms, onRefresh, a
                   : 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40'
               }`}
             >
-              {telemetrySource?.data_origin === 'csv_snapshot'
-                ? 'CSV snapshot'
+              {telemetrySource?.data_origin === 'project_csv'
+                ? 'Project CSV files'
                 : telemetrySource?.source === 'nokia' ? 'Nokia data' : 'Simulated data'}
             </span>
           </div>

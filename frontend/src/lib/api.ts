@@ -3,8 +3,8 @@ import {
   FCAPSEnergyAccounting, FCAPSSecurityLog, DigitalTwinStateSummary,
   DigitalTwinDevice, DigitalTwinTopologyGraph, WhatIfSimulationRequest,
   WhatIfSimulationResponse, SimulationHistoryItem, DemoScenarioInfo,
-  QuantumValidationResponse
-  , TelemetrySourceStatus
+  TelemetrySourceStatus, CsvIngestionStatus,
+  LocalQaoaAnalysis, QuantumOptimizationRun,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
@@ -106,8 +106,22 @@ export async function sendChatQuery(prompt: string): Promise<string> {
   return res?.response || "Unable to reach AI Optical Assistant backend.";
 }
 
-export async function getQuantumValidation(): Promise<QuantumValidationResponse | null> {
-  return await fetchJson<QuantumValidationResponse>('/quantum/validate');
+export async function getLocalQaoaAnalysis(): Promise<LocalQaoaAnalysis | null> {
+  return await fetchJson<LocalQaoaAnalysis>('/quantum/analyze');
+}
+
+export async function startQuantumOptimization(shots = 128): Promise<QuantumOptimizationRun | null> {
+  return await fetchJson<QuantumOptimizationRun>(`/quantum/run?shots=${shots}`, {
+    method: 'POST',
+  });
+}
+
+export async function getQuantumOptimizationRun(runId: string): Promise<QuantumOptimizationRun | null> {
+  return await fetchJson<QuantumOptimizationRun>(`/quantum/run/${encodeURIComponent(runId)}`);
+}
+
+export async function getExistingQuantumJob(jobId: string): Promise<QuantumOptimizationRun | null> {
+  return await fetchJson<QuantumOptimizationRun>(`/quantum/job/${encodeURIComponent(jobId)}`);
 }
 
 // ==================== DIGITAL TWIN API FUNCTIONS ====================

@@ -10,6 +10,7 @@ import { FcapsDashboard } from '../components/FcapsDashboard';
 import { OpticalChatbot } from '../components/OpticalChatbot';
 import { DigitalTwinDashboard } from '../components/DigitalTwinDashboard';
 import { QuantumOptimizationDashboard } from '../components/QuantumOptimizationDashboard';
+import { NokiaCsvWorkflow } from '../components/NokiaCsvWorkflow';
 
 import {
   Device,
@@ -17,8 +18,8 @@ import {
   AnomalyItem,
   FCAPSAlarm,
   FCAPSEnergyAccounting,
-  FCAPSSecurityLog
-  , TelemetrySourceStatus
+  FCAPSSecurityLog,
+  TelemetrySourceStatus,
 } from '../lib/types';
 
 import {
@@ -27,10 +28,10 @@ import {
   getAnomalies,
   getFCAPSAlarms,
   getFCAPSEnergyAccounting,
-  getFCAPSSecurityLogs
-  , getTelemetrySource
-  , setTelemetrySource
-  , refreshTelemetry
+  getFCAPSSecurityLogs,
+  getTelemetrySource,
+  setTelemetrySource,
+  refreshTelemetry,
 } from '../lib/api';
 
 export default function Home() {
@@ -46,13 +47,23 @@ export default function Home() {
 
   const fetchAllData = useCallback(async () => {
     try {
+      const sourceStatus = await getTelemetrySource();
+      const historicalCsv = sourceStatus?.data_origin === 'project_csv';
+      if (sourceStatus) setTelemetrySourceState(sourceStatus);
+      if (historicalCsv) {
+        setRecommendations([]);
+        setAnomalies([]);
+        setAlarms([]);
+        setAccounting(null);
+        setSecurityLogs([]);
+      }
       const [devsRes, recsRes, anoRes, almRes, accRes, secRes] = await Promise.all([
         getDevices(),
         getRecommendations(),
         getAnomalies(),
-        getFCAPSAlarms(),
-        getFCAPSEnergyAccounting(),
-        getFCAPSSecurityLogs()
+        historicalCsv ? Promise.resolve([]) : getFCAPSAlarms(),
+        historicalCsv ? Promise.resolve(null) : getFCAPSEnergyAccounting(),
+        historicalCsv ? Promise.resolve([]) : getFCAPSSecurityLogs()
       ]);
 
       const hasTelemetry = devsRes.length > 0;
@@ -62,7 +73,6 @@ export default function Home() {
       setAlarms(hasTelemetry ? almRes : []);
       setAccounting(hasTelemetry ? accRes : null);
       setSecurityLogs(hasTelemetry ? secRes : []);
-      const sourceStatus = await getTelemetrySource();
       if (sourceStatus) setTelemetrySourceState(sourceStatus);
     } catch (err) {
       console.warn("Telemetry fetch error:", err);
@@ -149,52 +159,68 @@ export default function Home() {
         {/* TAB 1: Live Telemetry Dashboard */}
         {activeTab === 'telemetry' && (
           <>
-            {/* Network Topology & AI Power Optimization */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-7">
-                <NetworkTopology
+            {telemetrySource?.source === 'nokia' && (
+              <NokiaCsvWorkflow
+                devices={devices}
+                ingestionStatus={telemetrySource.csv_ingestion_status}
+                sourceError={telemetrySource.last_refresh_error}
+              />
+            )}
+
+            {telemetrySource?.data_origin === 'project_csv' ? (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-xs text-amber-200">
+                Historical CSV mode uses the device-scoped telemetry and history above. Live topology, FCAPS alarms, and simulator-derived predictions are withheld because the project files do not verify those states.
+              </div>
+            ) : (
+              <>
+                {/* Network Topology & AI Power Optimization */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-7">
+                    <NetworkTopology
+                      devices={devices}
+                      onSelectNode={(nodeName) => setSelectedNodeFilter(nodeName)}
+                      telemetrySource={telemetrySource?.source ?? null}
+                    />
+                  </div>
+                  <div className="lg:col-span-5">
+                    <PowerOptimization
+                      recommendations={recommendations}
+                      onActionExecuted={fetchAllData}
+                    />
+                  </div>
+                </div>
+
+                {/* Traffic Prediction & Isolation Forest Anomaly Feed */}
+                <PredictionCharts anomalies={anomalies} />
+
+                {/* Device Telemetry Grid */}
+                <TelemetryGrid
                   devices={devices}
-                  onSelectNode={(nodeName) => setSelectedNodeFilter(nodeName)}
+                  selectedNodeFilter={selectedNodeFilter}
+                  onClearNodeFilter={() => setSelectedNodeFilter(null)}
                   telemetrySource={telemetrySource?.source ?? null}
                 />
-              </div>
-              <div className="lg:col-span-5">
-                <PowerOptimization
-                  recommendations={recommendations}
-                  onActionExecuted={fetchAllData}
+
+                {/* FCAPS Dashboard */}
+                <FcapsDashboard
+                  alarms={alarms}
+                  accounting={accounting}
+                  securityLogs={securityLogs}
+                  devices={devices}
+                  onRefresh={refreshAllData}
                 />
-              </div>
-            </div>
-
-            {/* Traffic Prediction & Isolation Forest Anomaly Feed */}
-            <PredictionCharts anomalies={anomalies} />
-
-            {/* 100 Optical Devices Telemetry Grid */}
-            <TelemetryGrid
-              devices={devices}
-              selectedNodeFilter={selectedNodeFilter}
-              onClearNodeFilter={() => setSelectedNodeFilter(null)}
-              telemetrySource={telemetrySource?.source ?? null}
-            />
-
-            {/* 5-Section FCAPS Dashboard */}
-            <FcapsDashboard
-              alarms={alarms}
-              accounting={accounting}
-              securityLogs={securityLogs}
-              devices={devices}
-              onRefresh={refreshAllData}
-            />
+              </>
+            )}
           </>
         )}
 
         {/* TAB 2: Digital Twin & What-If Engine Section */}
         {activeTab === 'digital_twin' && (
-          <DigitalTwinDashboard />
+          <DigitalTwinDashboard isHistoricalCsv={telemetrySource?.data_origin === 'project_csv'} />
         )}
 
         {activeTab === 'quantum' && (
-          <QuantumOptimizationDashboard />
+          <QuantumOptimizationDashboard isHistoricalCsv={telemetrySource?.data_origin === 'project_csv'} />
         )}
 
       </main>

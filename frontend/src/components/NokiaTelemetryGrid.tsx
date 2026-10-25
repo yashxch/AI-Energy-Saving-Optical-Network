@@ -36,15 +36,20 @@ const formatAvailableMetric = (
 const csvMetricCatalog = [
   { key: 'traffic_utilization_pct', label: 'Traffic utilization', read: (d: Device) => d.telemetry.traffic_utilization_pct, unit: '%' },
   { key: 'pre_fec_ber', label: 'Pre-FEC BER', read: (d: Device) => d.telemetry.pre_fec_ber, format: (v: number) => v.toExponential(2) },
-  { key: 'post_fec_ber', label: 'Post-FEC BER', read: (d: Device) => d.telemetry.post_fec_ber, format: (v: number) => v.toExponential(2) },
+  { key: 'osnr_db', label: 'OSNR', read: (d: Device) => d.telemetry.osnr_db, unit: ' dB' },
+  { key: 'dsp_temp_c', label: 'DSP temperature', read: (d: Device) => d.telemetry.dsp_temp_c, unit: '°C' },
+  { key: 'power_consumption_w', label: 'Power draw', read: (d: Device) => d.telemetry.power_consumption_w, unit: ' W' },
   { key: 'tx_power_dbm', label: 'Tx Optical Power', read: (d: Device) => d.telemetry.tx_power_dbm, unit: ' dBm' },
   { key: 'rx_power_dbm', label: 'Rx Optical Power', read: (d: Device) => d.telemetry.rx_power_dbm, unit: ' dBm' },
-  { key: 'esnr_db', label: 'ESNR', read: (d: Device) => d.telemetry.esnr_db, unit: ' dB' },
+  { key: 'laser_bias_ma', label: 'Laser bias current', read: (d: Device) => d.telemetry.laser_bias_ma, unit: ' mA' },
+  { key: 'laser_temp_c', label: 'Laser temperature', read: (d: Device) => d.telemetry.laser_temp_c, unit: '°C' },
+  { key: 'module_temp_c', label: 'Module temperature', read: (d: Device) => d.telemetry.module_temp_c, unit: '°C' },
+  { key: 'post_fec_ber', label: 'Post-FEC BER', read: (d: Device) => d.telemetry.post_fec_ber, format: (v: number) => v.toExponential(2) },
   { key: 'q_factor_db', label: 'Q-Factor', read: (d: Device) => d.telemetry.q_factor_db, unit: ' dB' },
-  { key: 'q_margin_avg_db', label: 'Q-Margin Average', read: (d: Device) => d.telemetry.q_margin_avg_db, unit: ' dB' },
-  { key: 'fec_ubc', label: 'FEC UBC', read: (d: Device) => d.telemetry.fec_ubc },
-  { key: 'eth_octets_rx', label: 'Ethernet Rx Octets', read: (d: Device) => d.telemetry.eth_octets_rx },
-  { key: 'eth_octets_tx', label: 'Ethernet Tx Octets', read: (d: Device) => d.telemetry.eth_octets_tx },
+  { key: 'chromatic_dispersion', label: 'Chromatic dispersion', read: (d: Device) => d.telemetry.chromatic_dispersion, unit: ' ps/nm' },
+  { key: 'fan_rpm', label: 'Fan speed', read: (d: Device) => d.telemetry.fan_rpm, unit: ' rpm' },
+  { key: 'voltage_v', label: 'Supply voltage', read: (d: Device) => d.telemetry.voltage_v, unit: ' V' },
+  { key: 'current_a', label: 'Current draw', read: (d: Device) => d.telemetry.current_a, unit: ' A' },
 ] as const;
 
 const formatCsvMetric = (device: Device, metric: (typeof csvMetricCatalog)[number]) => {
@@ -148,9 +153,10 @@ export const NokiaTelemetryGrid: React.FC<TelemetryGridProps> = ({
       const coreKeys = new Set([
         'traffic_utilization_pct',
         'pre_fec_ber',
+        'osnr_db',
+        'power_consumption_w',
         'tx_power_dbm',
         'rx_power_dbm',
-        'esnr_db',
         'q_factor_db',
       ]);
       return csvMetricCatalog
@@ -193,7 +199,7 @@ export const NokiaTelemetryGrid: React.FC<TelemetryGridProps> = ({
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
             {devices.some(isCsvSnapshot)
-              ? '15-minute CSV snapshot; blank metrics were not present in the report.'
+              ? 'Project-folder CSV telemetry; blank metrics were not present in the source files.'
               : 'Select a device to inspect organized live telemetry.'}
           </p>
         </div>

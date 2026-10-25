@@ -124,6 +124,19 @@ npm run dev
 ```
 Open your browser and navigate to `http://localhost:3000` to interact with the live telemetry dashboard, AI recommendations, FCAPS alarms, and Telecom Chatbot.
 
+##### Nokia project-folder CSV telemetry
+The backend reads these two configured files directly from the repository root when it starts:
+
+- `NOKIA-001_telemetry_60_rows_siteB_S4X400_with_anomalies.csv`
+- `NOKIA-003_PSIM-NEW-UPPER-SITE-A_SMF6_60_rows_Nokia_LAB_1sec_BER_scientific.csv`
+
+No browser file upload is required. The Simulator and Nokia project-folder CSV modes remain selectable. The existing aggregated 15-minute, 865-element snapshot is not selected or used. If either configured project CSV is missing or invalid, the Nokia source reports an error rather than falling back to that snapshot or live Nokia endpoints. Update `nokia_csv_files` in `backend/app/config/policies.json` if the project-root filenames change.
+
+Both supplied CSV schemas contain **16 numeric telemetry fields** each (in addition to identity, timestamp, and power-mode columns), not 12. The importer maps and displays all 16 observed fields rather than dropping or fabricating metrics. This is historical data, not a live Nokia connection; it does not authorize hardware commands or produce estimated or measured energy savings. Power-saving eligibility is withheld unless the configured 15-minute minimum observation window, 30-second telemetry-freshness limit, hardware support, and protected service capacity can all be verified.
+
+##### IBM Quantum job retrieval
+In **Quantum Optimization**, use **Retrieve Existing Job** to check an IBM Runtime job ID without submitting another job (`GET /api/quantum/job/{job_id}`). Completed jobs display measured counts; device recommendations are shown only when the candidate/QUBO metadata from that run is available for decoding and Digital Twin/Policy validation. New explicit QPU runs save their candidate mapping and run configuration under the ignored local `backend/.quantum_runs/` directory so polling can recover them after a backend restart. Do not treat a completed measurement as a validated recommendation when that metadata is unavailable.
+
 ---
 
 #### Configuration parameters & Environmental variables expected
@@ -137,7 +150,7 @@ The application comes pre-configured with sensible defaults for local developmen
 | `NEXT_PUBLIC_API_URL` | Frontend | `http://127.0.0.1:8000` | URL endpoint of backend API accessed by Next.js |
 | `NODE_ENV` | Frontend | `development` | Node environment (`development` or `production`) |
 
-For Nokia live telemetry, configure `nokia_destination_url` in `backend/app/config/policies.json` to the operator-approved inventory endpoint. Configure `nokia_pmdata_url` only after the Nokia NSP/WaveSuite release-specific PM endpoint and matching device identifier have been confirmed; the repository does not define that YANG path. The adapter joins inventory and PM records only by a matching device identifier. Configure `nokia_ca_bundle` with an existing trusted CA certificate path when the NSP certificate is not in the system trust store; TLS certificate verification is enabled. The Nokia adapter reuses its existing token session for both endpoints. The bundled integration requirements list Nokia API/YANG documentation and exact endpoints as information to obtain from the network operator.
+The default Nokia telemetry mode is configured for project-folder CSV telemetry. The configured `nokia_csv_files` list takes precedence over local snapshots and Nokia live endpoints. Do not remove the configured list if you want to keep Nokia mode restricted to the two project CSVs.
 
 ---
 

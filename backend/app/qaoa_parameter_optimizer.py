@@ -86,8 +86,8 @@ def _apply_mixer(state, beta, variable_count):
     return state
 
 
-def evaluate_parameters(energies, beta, gamma):
-    """Return expected QUBO energy for one p=1 parameter pair."""
+def simulate_qaoa_state(energies, beta, gamma):
+    """Return the p=1 statevector for one QUBO and parameter pair."""
     variable_count = int(math.log2(energies.size))
     state = np.full(
         energies.size,
@@ -95,7 +95,12 @@ def evaluate_parameters(energies, beta, gamma):
         dtype=np.complex128,
     )
     state *= np.exp(-1j * gamma * energies)
-    state = _apply_mixer(state, beta, variable_count)
+    return _apply_mixer(state, beta, variable_count)
+
+
+def evaluate_parameters(energies, beta, gamma):
+    """Return expected QUBO energy for one p=1 parameter pair."""
+    state = simulate_qaoa_state(energies, beta, gamma)
     probabilities = np.abs(state) ** 2
     return float(np.dot(probabilities, energies).real)
 

@@ -6,6 +6,7 @@
   "min_link_margin_db": 2.5,
   "max_protection_path_utilization_pct": 85.0,
   "telemetry_stale_timeout_sec": 30.0,
+  "minimum_power_observation_sec": 900.0,
   "proactive_wakeup_predicted_traffic_pct": 80.0,
   "co2_kg_per_kwh": 0.42,
   "cost_usd_per_kwh": 0.14,
@@ -23,7 +24,10 @@
   "nokia_ca_bundle": "backend/Certifi/ca.pem",
   "nokia_poll_interval_sec": 15.0,
   "nokia_request_timeout_sec": 35.0,
-  "nokia_pmdata_path": "./csvreport/15Min_20250822_064500.csv",
+  "nokia_csv_files": [
+    "NOKIA-001_telemetry_60_rows_siteB_S4X400_with_anomalies.csv",
+    "NOKIA-003_PSIM-NEW-UPPER-SITE-A_SMF6_60_rows_Nokia_LAB_1sec_BER_scientific.csv"
+  ],
   "nokia_nms_ip": "100.124.251.32",
   "nokia_ne_ip": "100.124.242.190",
   "nokia_execution_enabled": false

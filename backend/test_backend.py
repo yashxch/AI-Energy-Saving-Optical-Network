@@ -36,7 +36,12 @@ def test_glean_chatbot_context(monkeypatch):
     assert "14.5 dB" in response
 
 
-def test_backend_components():
+def test_backend_components(monkeypatch):
+    from app.telemetry import telemetry_provider
+
+    monkeypatch.setattr(telemetry_provider, "_source_mode", "simulator")
+    monkeypatch.setattr(telemetry_provider, "adapter", telemetry_provider.simulator_adapter)
+
     print("Testing 100 Optical Devices Telemetry Simulator...")
     assert len(simulator.devices) == 100, f"Expected 100 devices, got {len(simulator.devices)}"
     simulator.tick()
@@ -139,5 +144,4 @@ def test_backend_components():
 
 if __name__ == "__main__":
     test_backend_components()
-
 

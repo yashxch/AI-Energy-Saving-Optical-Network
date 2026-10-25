@@ -21,7 +21,7 @@ import {
   runDemoScenario
 } from '../lib/api';
 
-export function DigitalTwinDashboard() {
+export function DigitalTwinDashboard({ isHistoricalCsv = false }: { isHistoricalCsv?: boolean }) {
   const [stateSummary, setStateSummary] = useState<DigitalTwinStateSummary | null>(null);
   const [devices, setDevices] = useState<DigitalTwinDevice[]>([]);
   const [topology, setTopology] = useState<DigitalTwinTopologyGraph | null>(null);
@@ -48,7 +48,17 @@ export function DigitalTwinDashboard() {
       ]);
 
       if (sumRes) setStateSummary(sumRes);
-      if (devRes.length > 0) setDevices(devRes);
+      if (devRes.length > 0) {
+        setDevices(devRes);
+        setSelectedDevice((current) =>
+          devRes.some((device) => device.device_id === current)
+            ? current
+            : devRes[0].device_id
+        );
+      } else {
+        setDevices([]);
+        setSelectedDevice('');
+      }
       if (topRes) setTopology(topRes);
       setHistory(histRes);
       setDemoScenarios(demoRes);
@@ -125,9 +135,17 @@ export function DigitalTwinDashboard() {
   };
 
   const activeDevObj = devices.find(d => d.device_id === selectedDevice);
+  const topologyNodes = Array.from(new Set(
+    devices.map((device) => device.node_location).filter(Boolean)
+  ));
 
   return (
     <div className="space-y-6">
+      {isHistoricalCsv && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4 text-sm text-amber-100">
+          What-If simulations use the selected CSV device values in an isolated digital twin. The supplied history spans about one minute, so it does not meet the configured 900-second power-control observation minimum. Network execution is disabled in Nokia mode.
+        </div>
+      )}
       
       {/* 1. Header Metrics & Real-Time Sync Status */}
       <div className="bg-[#0e1626] border border-cyan-900/40 rounded-xl p-5 shadow-lg">
@@ -214,7 +232,7 @@ export function DigitalTwinDashboard() {
       </div>
 
       {/* 2. Interactive Preset Demo Scenarios Selector */}
-      <div className="bg-[#0e1626] border border-cyan-900/40 rounded-xl p-5 shadow-lg">
+      {!isHistoricalCsv && <div className="bg-[#0e1626] border border-cyan-900/40 rounded-xl p-5 shadow-lg">
         <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           🧪 Interactive Digital Twin Demo Scenarios (One-Click Test)
         </h3>
@@ -245,7 +263,7 @@ export function DigitalTwinDashboard() {
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* 3. Main Digital Twin Section: Graph Topology & What-If Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -266,7 +284,7 @@ export function DigitalTwinDashboard() {
               
               {/* Central Graph Links Render */}
               <div className="w-full max-w-lg mx-auto grid grid-cols-4 gap-4 text-center">
-                {['NYC', 'BOS', 'CHI', 'WDC', 'ATL', 'DAL', 'SFO', 'LAX'].map((nodeName) => {
+                {topologyNodes.map((nodeName) => {
                   const nodeDevices = devices.filter(d => d.node_location === nodeName);
                   const activeCount = nodeDevices.filter(d => d.status === 'ACTIVE').length;
                   const sleepCount = nodeDevices.filter(d => d.status === 'SLEEP').length;
@@ -411,7 +429,7 @@ export function DigitalTwinDashboard() {
                   <p className="text-xs leading-relaxed opacity-95">{simulationResult.reason}</p>
 
                   {/* Savings summary */}
-                  {simulationResult.result === 'APPROVED' && (
+                  {simulationResult.result === 'APPROVED' && !isHistoricalCsv && (
                     <div className="mt-3 grid grid-cols-3 gap-2 text-center pt-2 border-t border-emerald-800/40 text-xs font-mono">
                       <div>
                         <span className="text-[10px] opacity-75 block">Saving (W)</span>

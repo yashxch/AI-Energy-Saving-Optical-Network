@@ -113,6 +113,13 @@ class LLMEngine:
 
     def get_recommendations(self) -> List[Recommendation]:
         """Scans network telemetry and generates intelligent power optimization recommendations validated by Digital Twin."""
+        if (
+            telemetry_provider.source_mode == "nokia"
+            and telemetry_provider.nokia_adapter.is_historical_csv
+        ):
+            # CSV history cannot verify hardware power-mode support or live service capacity.
+            return []
+
         recommendations = []
         rec_counter = 1
 
@@ -274,6 +281,10 @@ class LLMEngine:
                 "Try asking: *What is the status of TRX-800G-003?*"
             )
 
+        historical_csv = (
+            telemetry_provider.source_mode == "nokia"
+            and telemetry_provider.nokia_adapter.is_historical_csv
+        )
         glean_context = self._fetch_glean_context(prompt)
         if glean_context and any(
             keyword in p_lower for keyword in (
@@ -282,6 +293,13 @@ class LLMEngine:
                 "how to", "nokia", "procedure"
             )
         ):
+            if historical_csv:
+                return (
+                    "🔎 **Glean (Nokia) general knowledge context**\n\n"
+                    f"{glean_context}\n\n"
+                    "This is general reference material, not an assessment of the "
+                    "historical CSV data or a live device recommendation."
+                )
             return (
                 "🔎 **Glean (Nokia) knowledge context**\n\n"
                 f"{glean_context}\n\n"
@@ -297,12 +315,89 @@ class LLMEngine:
         )
         if matched_device:
             t = matched_device.telemetry
+            if (
+                telemetry_provider.source_mode == "nokia"
+                and telemetry_provider.nokia_adapter.is_historical_csv
+            ):
+                record = matched_device.raw_record
+                history = record.get("csv_history", []) if isinstance(record, dict) else []
+                timestamp = (
+                    history[-1].get("timestamp")
+                    if history and isinstance(history[-1], dict)
+                    else "unavailable"
+                )
+                return (
+                    f"📍 **{matched_device.name} ({matched_device.id}) — project CSV**\n\n"
+                    f"• Latest sample: `{timestamp}`\n"
+                    f"• Traffic utilization: `{t.traffic_utilization_pct:.2f}%`\n"
+                    f"• Power draw: `{t.power_consumption_w:.2f} W`\n"
+                    f"• OSNR: `{t.osnr_db:.2f} dB` | Pre-FEC BER: `{t.pre_fec_ber:.2e}`\n"
+                    f"• DSP temperature: `{t.dsp_temp_c:.1f}°C`\n"
+                    "This is historical CSV data; it does not establish the device's "
+                    "live health, operating mode, or connection status."
+                )
             return (
                 f"📍 **{matched_device.name} ({matched_device.id})**\n\n"
                 f"• Health: **{matched_device.health.value}** | Power mode: **{matched_device.power_mode.value}**\n"
                 f"• Power: `{t.power_consumption_w:.2f} W` | Traffic: `{t.traffic_utilization_pct:.2f}%`\n"
                 f"• OSNR: `{t.osnr_db:.2f} dB` | Pre-FEC BER: `{t.pre_fec_ber:.2e}`\n"
                 f"• DSP temperature: `{t.dsp_temp_c:.1f}°C` | Link: `{matched_device.node_location} → {matched_device.target_node}`"
+            )
+
+        if (
+            telemetry_provider.source_mode == "nokia"
+            and telemetry_provider.nokia_adapter.is_historical_csv
+        ):
+            histories = [
+                (device, device.raw_record.get("csv_history", []))
+                for device in devices.values()
+            ]
+            if any(term in p_lower for term in ("lower utilization", "lower traffic", "least load")):
+                device = min(
+                    devices.values(),
+                    key=lambda item: item.telemetry.traffic_utilization_pct,
+                )
+                return (
+                    f"{device.name} ({device.id}) has the lower latest recorded "
+                    f"traffic utilization at {device.telemetry.traffic_utilization_pct:.2f}%. "
+                    "This is a historical CSV observation, not a live reading."
+                )
+            if any(term in p_lower for term in ("sleep", "power saving", "save power", "recommend")):
+                return (
+                    "No power-saving action is eligible from these project CSV files. They "
+                    "contain historical samples only; supported low-power modes, current "
+                    "device state, service capacity, and protection constraints are not "
+                    "verified. No savings are estimated."
+                )
+            if any(term in p_lower for term in ("missing", "sufficient", "evaluate")):
+                return (
+                    "Power-saving evaluation requires verified hardware mode support, "
+                    "current device state, minimum service/capacity requirements, fresh "
+                    "telemetry over a sufficient observation period, and applicable "
+                    "protection constraints. The CSV files do not provide those "
+                    "safety facts."
+                )
+            if any(term in p_lower for term in ("abnormal", "alarm", "alert")):
+                return (
+                    "No device-specific abnormality assessment is available from the "
+                    "project CSV data. The files are historical; validate the "
+                    "reported measurements against your device-specific operating "
+                    "thresholds before treating them as alarms."
+                )
+            summaries = []
+            for device, history in histories:
+                summaries.append(
+                    f"• {device.name} ({device.id}): latest traffic "
+                    f"{device.telemetry.traffic_utilization_pct:.2f}%, power draw "
+                    f"{device.telemetry.power_consumption_w:.2f} W, OSNR "
+                    f"{device.telemetry.osnr_db:.2f} dB, pre-FEC BER "
+                    f"{device.telemetry.pre_fec_ber:.2e}; "
+                    f"{len(history)} accepted historical records."
+                )
+            return (
+                "Project-folder CSV telemetry summary (historical data; not live):\n"
+                + "\n".join(summaries)
+                + "\nNo real device actions are performed from CSV telemetry."
             )
 
         if any(word in p_lower for word in ("source", "refresh", "connected", "data pulled", "poll")):

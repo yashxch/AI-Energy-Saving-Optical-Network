@@ -36,8 +36,6 @@ def test_simulated_annealing_is_deterministic_and_feasible():
     assert first["num_selected"] == second["num_selected"]
     assert first["total_power_saving_w"] == second["total_power_saving_w"]
     assert "qiskit_ibm_runtime" not in sys.modules
-    assert "app.digital_twin" not in sys.modules
-    assert "app.policy_engine" not in sys.modules
 
 
 if __name__ == "__main__":

@@ -5,14 +5,16 @@ import sys
 # dependencies installed for this project.
 
 import asyncio
-import time
 import json
+import time
+import re
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from typing import List, Optional
+from typing import List
 
 from .models import (
     Device,
@@ -46,7 +48,14 @@ from .llm_engine import llm_engine
 from .policy_engine import policy_engine
 from .fcaps import fcaps_manager
 from .digital_twin import digital_twin_engine
-from .quantum_optimizer import validate_qpu_solution_with_digital_twin
+from .quantum_optimizer import (
+    analyze_devices_with_local_qaoa,
+    build_power_qubo,
+    evaluate_qpu_counts,
+    QUBO_PENALTY,
+    run_qaoa_on_ibm_qpu,
+    validate_qpu_solution_with_digital_twin,
+)
 from .adaptive_baseline import adaptive_baseline_manager
 from .telemetry import telemetry_provider
 from .thresholds import NokiaThresholdEvaluator
@@ -67,6 +76,56 @@ app = FastAPI(
 
 adaptive_baseline = adaptive_baseline_manager
 nokia_thresholds = NokiaThresholdEvaluator()
+quantum_runs = {}
+quantum_run_storage = Path(__file__).resolve().parent.parent / ".quantum_runs"
+
+
+def _persist_quantum_run(run_id, run):
+    stored_run = {
+        key: value
+        for key, value in run.items()
+        if key != "job"
+    }
+    quantum_run_storage.mkdir(parents=True, exist_ok=True)
+    target = quantum_run_storage / f"{run_id}.json"
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text(json.dumps(stored_run), encoding="utf-8")
+    temporary.replace(target)
+
+
+def _restore_quantum_run(run_id):
+    if not re.fullmatch(r"[0-9a-f]{32}", run_id):
+        return None
+    metadata_path = quantum_run_storage / f"{run_id}.json"
+    if not metadata_path.is_file():
+        return None
+
+    try:
+        stored_run = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"Could not read persisted run metadata: {exc}") from exc
+
+    required_fields = {
+        "job_id",
+        "candidates",
+        "num_qubo_variables",
+        "qubo_variable_names",
+        "candidate_variable_names",
+        "measurement_bit_order",
+        "qaoa_beta",
+        "qaoa_gamma",
+        "max_actions",
+        "source",
+    }
+    if not required_fields.issubset(stored_run):
+        raise RuntimeError("Persisted run metadata is incomplete.")
+
+    from qiskit_ibm_runtime import QiskitRuntimeService
+
+    service = QiskitRuntimeService(name="optical-qpu")
+    stored_run["job"] = service.job(stored_run["job_id"])
+    quantum_runs[run_id] = stored_run
+    return stored_run
 
 
 # ============================================================
@@ -88,219 +147,610 @@ app.add_middleware(
 
 @app.get("/api/quantum/validate")
 def validate_quantum_result():
-    """
-    Retrieve the already-completed real NOKIA Quantum result
-    and validate it through the Digital Twin and Policy Engine.
-
-    IMPORTANT:
-    This endpoint DOES NOT submit a new quantum job.
-    It only retrieves the previously completed  QPU job.
-    """
-
-    # --------------------------------------------------------
-    # Real IBM Quantum job
-    # --------------------------------------------------------
-
-    JOB_ID = "damsci82fm4c73f3faa0"
-
-    # --------------------------------------------------------
-    # Candidate snapshot used when the QUBO was created
-    # --------------------------------------------------------
-
-    SNAPSHOT = (
-        Path(__file__).resolve().parent
-        / "quantum_runs"
-        / "20260918T231615Z_candidates.json"
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is retired. Retrieve a known IBM job with GET /api/quantum/job/{job_id}.",
     )
 
+@app.get("/api/quantum/analyze")
+def analyze_current_telemetry_with_local_qaoa():
+    """Analyze eligible actions from the selected source without using a QPU."""
+    result = analyze_devices_with_local_qaoa(telemetry_provider.get_devices())
+    status = telemetry_provider.nokia_adapter.get_uploaded_csv_status()
+    durations = [
+        device.get("observation_duration_seconds", 0.0)
+        for device in status.get("devices", {}).values()
+    ]
+    return {
+        **result,
+        "source": telemetry_provider.source_mode,
+        "data_origin": (
+            telemetry_provider.nokia_adapter.data_origin
+            if telemetry_provider.source_mode == "nokia"
+            else "simulator"
+        ),
+        "minimum_observation_seconds": telemetry_provider.nokia_adapter.minimum_power_observation_sec,
+        "observation_durations_seconds": durations,
+        "execution_performed": False,
+        "qpu_used": False,
+    }
+
+
+@app.get("/api/quantum/job/{job_id}")
+def retrieve_existing_quantum_job(job_id: str):
+    """Retrieve an existing IBM job without submitting a replacement."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{6,128}", job_id):
+        raise HTTPException(status_code=422, detail="Invalid IBM job ID format.")
+
+    for run_id, run in quantum_runs.items():
+        if run["job_id"] == job_id:
+            return get_quantum_optimization_run(run_id)
+
     try:
-
-        print("\n")
-        print("=" * 60)
-        print("REAL  QUANTUM VALIDATION")
-        print("=" * 60)
-
-        # ----------------------------------------------------
-        # Connect to IBM Quantum
-        # ----------------------------------------------------
-
         from qiskit_ibm_runtime import QiskitRuntimeService
 
-        service = QiskitRuntimeService()
-
-        print("NOKIA Quantum connection: OK")
-
-        # ----------------------------------------------------
-        # Retrieve previously completed job
-        # ----------------------------------------------------
-
-        job = service.job(JOB_ID)
-
-        job_status = str(job.status())
-
-        print("Job ID:", JOB_ID)
-        print("Job status:", job_status)
-
-        # ----------------------------------------------------
-        # Check job completion
-        # ----------------------------------------------------
-
-        normalized_status = job_status.upper()
-
-        if normalized_status not in {
-            "DONE",
-            "JOBSTATUS.DONE"
-        }:
-
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "status": "pending",
-                    "job_id": JOB_ID,
-                    "qpu_status": job_status,
-                    "message": "The IBM Quantum job has not completed yet."
-                }
-            )
-
-        # ----------------------------------------------------
-        # Retrieve REAL QPU measurement result
-        # ----------------------------------------------------
-
-        result = job.result()
-
-        counts = result[0].data.meas.get_counts()
-
-        if not counts:
-            raise RuntimeError(
-                " Quantum returned no measurement counts."
-            )
-
-        total_shots = int(sum(counts.values()))
-
-        print("Backend:", job.backend().name)
-        print("Total QPU shots:", total_shots)
-        print("Distinct measured states:", len(counts))
-
-        # ----------------------------------------------------
-        # Validate QPU solution against:
-        #
-        # 1. Current telemetry
-        # 2. Digital Twin
-        # 3. Optical Policy Engine
-        #
-        # ----------------------------------------------------
-
-        validation = validate_qpu_solution_with_digital_twin(
-            counts,
-            snapshot_path=str(SNAPSHOT)
-        )
-
-        # ----------------------------------------------------
-        # Build JSON-safe response
-        # ----------------------------------------------------
-
-        response = {
-            "status": validation.get("status"),
-
-            "message": (
-                "Real IBM Quantum result retrieved successfully "
-                "and passed through the Digital Twin and Policy Engine."
-            ),
-
-            "qpu": {
-                "job_id": JOB_ID,
-                "backend": str(job.backend().name),
-                "shots": total_shots,
-                "solution": validation.get("qpu_solution")
-            },
-
-            "digital_twin": validation.get(
-                "digital_twin_validation"
-            ),
-
-            "actions": validation.get(
-                "actions",
-                []
-            ),
-
-            "candidate_snapshot": validation.get(
-                "candidate_snapshot"
-            ),
-
-            "used_current_telemetry": validation.get(
-                "used_current_telemetry",
-                True
-            ),
-
-            "execution_performed": validation.get(
-                "execution_performed",
-                False
-            )
+        service = QiskitRuntimeService(name="optical-qpu")
+        job = service.job(job_id)
+        raw_status = job.status()
+        job_status = getattr(
+            raw_status,
+            "name",
+            str(raw_status).split(".")[-1],
+        ).upper()
+        backend = job.backend()
+        backend_name = getattr(backend, "name", str(backend))
+        created_at = getattr(job, "creation_date", None)
+        if callable(created_at):
+            created_at = created_at()
+        if hasattr(created_at, "isoformat"):
+            created_at = created_at.isoformat()
+        elif created_at is not None:
+            created_at = str(created_at)
+    except Exception as exc:
+        return {
+            "job_id": job_id,
+            "execution_method": "ibm_qpu",
+            "status": "error",
+            "metadata_available": False,
+            "result_retrieved": False,
+            "error_type": type(exc).__name__,
+            "error": _quantum_error_message(exc),
+            "message": "Could not retrieve this IBM job. No replacement job was submitted.",
+            "execution_performed": False,
         }
 
-        # ----------------------------------------------------
-        # Guarantee JSON serializability
-        # ----------------------------------------------------
-
-        safe_response = json.loads(
-            json.dumps(
-                response,
-                default=str
-            )
-        )
-
-        print("Validation status:",
-              safe_response.get("status"))
-
-        print(
-            "Execution performed:",
-            safe_response.get("execution_performed")
-        )
-
-        print("=" * 60)
-        print("QUANTUM VALIDATION COMPLETE")
-        print("=" * 60)
-        print()
-
-        return JSONResponse(
-            status_code=200,
-            content=safe_response
-        )
-
-    except Exception as e:
-
-        # ----------------------------------------------------
-        # IMPORTANT:
-        # Return the REAL error instead of generic
-        # "Internal Server Error".
-        # ----------------------------------------------------
-
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        print("\n")
-        print("=" * 60)
-        print("QUANTUM VALIDATION ERROR")
-        print("=" * 60)
-        print("Error type:", error_type)
-        print("Error:", error_message)
-        print("=" * 60)
-        print()
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "error",
-                "error_type": error_type,
-                "error": error_message,
-                "job_id": JOB_ID,
-                "snapshot": str(SNAPSHOT),
+    if job_status in {"DONE", "COMPLETED"}:
+        try:
+            result = job.result()
+            counts = result[0].data.meas.get_counts()
+            shot_count = sum(counts.values())
+            response = {
+                "job_id": job_id,
+                "execution_method": "ibm_qpu",
+                "backend": backend_name,
+                "job_status": job_status,
+                "status": "completed",
+                "submitted_at": created_at,
+                "metadata_available": False,
+                "result_retrieved": True,
+                "shots": shot_count,
+                "measurement_counts": counts,
+                "decoded_solution": None,
+                "recommendations": [],
+                "selected_action_count": None,
+                "total_estimated_power_saving_w": None,
+                "validation_status": None,
                 "message": (
-                    "Quantum validation failed. "
-                    "The actual backend error is shown above."
-                )
+                    "IBM returned a completed measurement result, but this job's "
+                    "candidate/QUBO metadata was not persisted. Measurements are "
+                    "shown without decoding or recommendations."
+                ),
+                "execution_performed": False,
             }
+        except Exception as exc:
+            response = {
+                "job_id": job_id,
+                "execution_method": "ibm_qpu",
+                "backend": backend_name,
+                "job_status": job_status,
+                "status": "error",
+                "submitted_at": created_at,
+                "metadata_available": False,
+                "result_retrieved": False,
+                "error_type": type(exc).__name__,
+                "error": _quantum_error_message(exc),
+                "message": "IBM reports completion, but the measurement result could not be retrieved.",
+                "execution_performed": False,
+            }
+        return response
+
+    if job_status in {"ERROR", "FAILED"}:
+        status = "failed"
+    elif job_status in {"CANCELLED", "CANCELED"}:
+        status = "cancelled"
+    elif job_status == "RUNNING":
+        status = "running"
+    else:
+        status = "queued"
+
+    return {
+        "job_id": job_id,
+        "execution_method": "ibm_qpu",
+        "backend": backend_name,
+        "job_status": job_status,
+        "status": status,
+        "submitted_at": created_at,
+        "metadata_available": False,
+        "result_retrieved": False,
+        "message": (
+            f"Existing IBM job status: {job_status}. "
+            "No replacement job was submitted."
+        ),
+        "execution_performed": False,
+    }
+
+
+def _quantum_error_message(exc: Exception) -> str:
+    return re.sub(
+        r"(?i)(token|api[-_ ]?key|authorization)(\s*[:=]\s*)[^,\s]+",
+        r"\1\2[REDACTED]",
+        str(exc),
+    )
+
+
+def _preflight_quantum_candidates(devices, candidates):
+    from .models import DeviceType
+
+    allowed_ids = set()
+    rejections = []
+    digital_twin_engine.synchronize()
+
+    for candidate in candidates:
+        device = devices.get(candidate["device_id"])
+        if (
+            candidate["action"] == "SLEEP"
+            and device is not None
+            and device.type == DeviceType.TRANSPONDER_800G
+        ):
+            action_type = ActionType.SLEEP_TRANSPONDER
+        elif (
+            candidate["action"] == "LOW_GAIN"
+            and device is not None
+            and device.type == DeviceType.EDFA
+        ):
+            action_type = ActionType.REDUCE_GAIN
+        else:
+            rejections.append({
+                "device_id": candidate["device_id"],
+                "reason": "No supported Digital Twin action is defined for this candidate.",
+            })
+            continue
+
+        validation = digital_twin_engine.validate_quantum_solution([{
+            "device_id": candidate["device_id"],
+            "action_type": action_type,
+        }])
+        action_result = (validation.get("actions") or [{}])[0]
+        if action_result.get("result") == "APPROVED":
+            allowed_ids.add(candidate["device_id"])
+        else:
+            rejections.append({
+                "device_id": candidate["device_id"],
+                "reason": action_result.get("reason", validation.get("reason")),
+            })
+
+    return allowed_ids, rejections
+
+
+@app.post("/api/quantum/run")
+def start_quantum_optimization(
+    shots: int = Query(default=128, ge=32, le=1024),
+):
+    source = telemetry_provider.source_mode
+    data_origin = (
+        telemetry_provider.nokia_adapter.data_origin
+        if source == "nokia"
+        else "simulator"
+    )
+    if source == "nokia" and telemetry_provider.nokia_adapter.is_historical_csv:
+        return {
+            "status": "no_candidates",
+            "execution_method": "ibm_qpu",
+            "source": source,
+            "data_origin": data_origin,
+            "eligible_candidate_count": 0,
+            "qpu_submitted": False,
+            "message": (
+                "Historical project CSV telemetry is not eligible for QPU power "
+                "recommendations. It does not establish the required current "
+                "900-second observation or supported device power modes."
+            ),
+            "rejections": [],
+            "execution_performed": False,
+        }
+
+    if source == "simulator":
+        telemetry_provider.tick()
+    devices = telemetry_provider.get_devices()
+    qubo, candidates = build_power_qubo(devices)
+    if qubo is None:
+        return {
+            "status": "no_candidates",
+            "execution_method": "ibm_qpu",
+            "source": source,
+            "data_origin": data_origin,
+            "eligible_candidate_count": 0,
+            "qpu_submitted": False,
+            "message": "No devices satisfy the current QUBO eligibility rules.",
+            "rejections": [],
+            "execution_performed": False,
+        }
+
+    allowed_ids, rejections = _preflight_quantum_candidates(devices, candidates)
+    candidate_devices = {
+        device_id: device
+        for device_id, device in devices.items()
+        if device_id in allowed_ids
+    }
+    qubo, candidates = build_power_qubo(candidate_devices)
+    if qubo is None:
+        return {
+            "status": "no_candidates",
+            "execution_method": "ibm_qpu",
+            "source": source,
+            "data_origin": data_origin,
+            "eligible_candidate_count": 0,
+            "qpu_submitted": False,
+            "message": "No candidates passed current Digital Twin and Policy Engine pre-validation.",
+            "rejections": rejections,
+            "execution_performed": False,
+        }
+
+    try:
+        submission = run_qaoa_on_ibm_qpu(
+            qubo,
+            backend_name="ibm_fez",
+            shots=shots,
         )
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "execution_method": "ibm_qpu",
+            "source": source,
+            "data_origin": data_origin,
+            "eligible_candidate_count": len(candidates),
+            "qpu_submitted": False,
+            "error_type": type(exc).__name__,
+            "error": _quantum_error_message(exc),
+            "message": "IBM QPU submission failed; no local result was substituted.",
+            "rejections": rejections,
+            "execution_performed": False,
+        }
+
+    run_id = uuid.uuid4().hex
+    qubo_variable_names = [variable.name for variable in qubo.variables]
+    candidate_variable_names = [
+        f"x{index}" for index in range(len(candidates))
+    ]
+    quantum_run = {
+        "run_id": run_id,
+        "job": submission["job"],
+        "job_id": submission["job_id"],
+        "backend": submission["backend"],
+        "shots": submission["shots"],
+        "requested_shots": shots,
+        "num_qubo_variables": qubo.get_num_vars(),
+        "qubo_variable_names": qubo_variable_names,
+        "candidate_variable_names": candidate_variable_names,
+        "measurement_bit_order": "qiskit_counts_msb_to_lsb",
+        "qaoa_beta": submission["beta"],
+        "qaoa_gamma": submission["gamma"],
+        "qaoa_reps": 1,
+        "qubo_penalty": QUBO_PENALTY,
+        "max_actions": 4,
+        "candidates": candidates,
+        "rejections": rejections,
+        "source": source,
+        "data_origin": data_origin,
+        "submitted_at": submission["submitted_at"],
+        "num_qubits": submission["num_qubits"],
+        "circuit_depth": submission["depth"],
+        "completed_response": None,
+    }
+    quantum_runs[run_id] = quantum_run
+    metadata_persisted = True
+    persistence_error = None
+    try:
+        _persist_quantum_run(run_id, quantum_run)
+    except OSError as exc:
+        metadata_persisted = False
+        persistence_error = _quantum_error_message(exc)
+    return {
+        "run_id": run_id,
+        "job_id": submission["job_id"],
+        "execution_method": "ibm_qpu",
+        "backend": submission["backend"],
+        "job_status": submission["status"],
+        "status": "queued",
+        "qpu_submitted": True,
+        "source": source,
+        "data_origin": data_origin,
+        "submitted_at": submission["submitted_at"],
+        "eligible_candidate_count": len(candidates),
+        "qubo_variables": qubo.get_num_vars(),
+        "qubo_variable_names": qubo_variable_names,
+        "candidate_variable_names": candidate_variable_names,
+        "measurement_bit_order": "qiskit_counts_msb_to_lsb",
+        "qaoa_beta": submission["beta"],
+        "qaoa_gamma": submission["gamma"],
+        "max_actions": 4,
+        "requested_shots": shots,
+        "shots": shots,
+        "metadata_available": True,
+        "metadata_persisted": metadata_persisted,
+        "num_qubits": submission["num_qubits"],
+        "circuit_depth": submission["depth"],
+        "message": (
+            "QAOA circuit submitted to IBM hardware. Poll this run for its result."
+            if metadata_persisted
+            else (
+                "QAOA circuit was submitted, but run metadata could not be persisted. "
+                f"Restart recovery will not be available: {persistence_error}"
+            )
+        ),
+        "execution_performed": False,
+    }
+
+
+@app.get("/api/quantum/run/{run_id}")
+def get_quantum_optimization_run(run_id: str):
+    run = quantum_runs.get(run_id)
+    if run is None:
+        try:
+            run = _restore_quantum_run(run_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=_quantum_error_message(exc),
+            ) from exc
+        if run is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Quantum run metadata was not found in memory or persistent storage.",
+            )
+    if run["completed_response"] is not None:
+        return run["completed_response"]
+
+    try:
+        raw_status = run["job"].status()
+        job_status = getattr(raw_status, "name", str(raw_status).split(".")[-1]).upper()
+    except Exception as exc:
+        return {
+            "run_id": run_id,
+            "job_id": run["job_id"],
+            "execution_method": "ibm_qpu",
+            "backend": run["backend"],
+            "status": "error",
+            "qpu_submitted": True,
+            "source": run["source"],
+            "data_origin": run["data_origin"],
+            "qubo_variables": run["num_qubo_variables"],
+            "num_qubits": run["num_qubits"],
+            "circuit_depth": run["circuit_depth"],
+            "error_type": type(exc).__name__,
+            "error": _quantum_error_message(exc),
+            "message": "Could not retrieve the IBM job status.",
+            "execution_performed": False,
+        }
+
+    if job_status not in {"DONE", "COMPLETED"}:
+        if job_status in {"ERROR", "FAILED", "CANCELLED", "CANCELED"}:
+            terminal_status = (
+                "cancelled"
+                if job_status in {"CANCELLED", "CANCELED"}
+                else "failed"
+            )
+            return {
+                "run_id": run_id,
+                "job_id": run["job_id"],
+                "execution_method": "ibm_qpu",
+                "backend": run["backend"],
+                "job_status": job_status,
+                "status": terminal_status,
+                "qpu_submitted": True,
+                "source": run["source"],
+                "data_origin": run["data_origin"],
+                "qubo_variables": run["num_qubo_variables"],
+                "num_qubits": run["num_qubits"],
+                "circuit_depth": run["circuit_depth"],
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "message": f"IBM job ended with status {job_status}.",
+                "execution_performed": False,
+            }
+        return {
+            "run_id": run_id,
+            "job_id": run["job_id"],
+            "execution_method": "ibm_qpu",
+            "backend": run["backend"],
+            "job_status": job_status,
+            "status": "running" if job_status == "RUNNING" else "queued",
+            "qpu_submitted": True,
+            "source": run["source"],
+            "data_origin": run["data_origin"],
+            "qubo_variables": run["num_qubo_variables"],
+            "num_qubits": run["num_qubits"],
+            "circuit_depth": run["circuit_depth"],
+            "submitted_at": run["submitted_at"],
+            "eligible_candidate_count": len(run["candidates"]),
+            "requested_shots": run["requested_shots"],
+            "message": f"IBM job is {job_status.lower()}.",
+            "execution_performed": False,
+        }
+
+    try:
+        sampler_result = run["job"].result()
+        counts = sampler_result[0].data.meas.get_counts()
+        evaluation = evaluate_qpu_counts(
+            counts,
+            run["candidates"],
+            num_qubo_variables=run["num_qubo_variables"],
+            max_actions=run["max_actions"],
+            variable_order=run["qubo_variable_names"],
+            candidate_variable_names=run["candidate_variable_names"],
+        )
+    except Exception as exc:
+        response = {
+            "run_id": run_id,
+            "job_id": run["job_id"],
+            "execution_method": "ibm_qpu",
+            "backend": run["backend"],
+            "job_status": job_status,
+            "status": "failed",
+            "qpu_submitted": True,
+            "metadata_available": True,
+            "result_retrieved": False,
+            "qubo_variables": run["num_qubo_variables"],
+            "num_qubits": run["num_qubits"],
+            "circuit_depth": run["circuit_depth"],
+            "submitted_at": run["submitted_at"],
+            "error_type": type(exc).__name__,
+            "error": _quantum_error_message(exc),
+            "message": "IBM job result retrieval or decoding failed; no local result was substituted.",
+            "execution_performed": False,
+        }
+        run["completed_response"] = response
+        return response
+
+    best_solution = evaluation.get("best_solution")
+    if telemetry_provider.source_mode != run["source"]:
+        response = {
+            "run_id": run_id,
+            "job_id": run["job_id"],
+            "execution_method": "ibm_qpu",
+            "backend": run["backend"],
+            "job_status": job_status,
+            "status": "rejected",
+            "qpu_submitted": True,
+            "source": run["source"],
+            "data_origin": run["data_origin"],
+            "qubo_variables": run["num_qubo_variables"],
+            "num_qubits": run["num_qubits"],
+            "circuit_depth": run["circuit_depth"],
+            "current_source": telemetry_provider.source_mode,
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "message": "Telemetry source changed while the QPU job was running; the proposal was not validated.",
+            "qpu_solution": best_solution,
+            "execution_performed": False,
+        }
+        run["completed_response"] = response
+        return response
+
+    if best_solution is None or not best_solution["selected_devices"]:
+        response = {
+            "run_id": run_id,
+            "job_id": run["job_id"],
+            "execution_method": "ibm_qpu",
+            "backend": run["backend"],
+            "job_status": job_status,
+            "status": "rejected",
+            "qpu_submitted": True,
+            "source": run["source"],
+            "data_origin": run["data_origin"],
+            "qubo_variables": run["num_qubo_variables"],
+            "num_qubits": run["num_qubits"],
+            "circuit_depth": run["circuit_depth"],
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "message": "The completed QPU result contained no feasible selected actions.",
+            "qpu_solution": best_solution,
+            "rejections": run["rejections"],
+            "execution_performed": False,
+        }
+        run["completed_response"] = response
+        return response
+
+    validation = validate_qpu_solution_with_digital_twin(
+        counts,
+        candidates=run["candidates"],
+        num_qubo_variables=run["num_qubo_variables"],
+        max_actions=run["max_actions"],
+        variable_order=run["qubo_variable_names"],
+        candidate_variable_names=run["candidate_variable_names"],
+    )
+    twin_result = validation.get("digital_twin_validation") or {}
+    validation_by_id = {
+        action["device_id"]: action
+        for action in twin_result.get("actions", [])
+    }
+    recommendations = []
+    for selected in best_solution["selected_devices"]:
+        validated = validation_by_id.get(selected["device_id"], {})
+        if validated.get("result") != "APPROVED":
+            continue
+        recommendations.append({
+            **selected,
+            "estimated_power_saving_w": validated.get("saving_w", 0.0),
+            "validation_status": validated.get("result"),
+            "policy_checks": validated.get("policy_checks", []),
+        })
+
+    response_status = (
+        "completed"
+        if twin_result.get("all_actions_approved")
+        and len(recommendations) == len(best_solution["selected_devices"])
+        else "rejected"
+    )
+    response = {
+        "run_id": run_id,
+        "job_id": run["job_id"],
+        "execution_method": "ibm_qpu",
+        "backend": run["backend"],
+        "job_status": job_status,
+        "status": response_status,
+        "qpu_submitted": True,
+        "metadata_available": True,
+        "result_retrieved": True,
+        "source": run["source"],
+        "data_origin": run["data_origin"],
+        "qubo_variables": run["num_qubo_variables"],
+        "qubo_variable_names": run["qubo_variable_names"],
+        "candidate_variable_names": run["candidate_variable_names"],
+        "measurement_bit_order": run["measurement_bit_order"],
+        "qaoa_beta": run["qaoa_beta"],
+        "qaoa_gamma": run["qaoa_gamma"],
+        "num_qubits": run["num_qubits"],
+        "circuit_depth": run["circuit_depth"],
+        "submitted_at": run["submitted_at"],
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "shots": evaluation["total_shots"],
+        "requested_shots": run["requested_shots"],
+        "eligible_candidate_count": len(run["candidates"]),
+        "max_actions": run["max_actions"],
+        "selected_action_count": best_solution["num_selected"],
+        "qpu_solution": best_solution,
+        "recommendations": recommendations,
+        "rejections": run["rejections"] + [
+            action for action in twin_result.get("actions", [])
+            if action.get("result") != "APPROVED"
+        ],
+        "digital_twin": twin_result,
+        "validation_status": twin_result.get("status", validation.get("status")),
+        "total_estimated_power_saving_w": round(
+            sum(item["estimated_power_saving_w"] for item in recommendations),
+            1,
+        ),
+        "message": (
+            "IBM QPU result retrieved and validated. Recommendations are advisory; "
+            "no network action was executed."
+        ),
+        "execution_performed": False,
+    }
+    run["completed_response"] = response
+    try:
+        _persist_quantum_run(run_id, run)
+    except OSError as exc:
+        response["metadata_persisted"] = False
+        response["metadata_persistence_error"] = _quantum_error_message(exc)
+    return response
 
 
 # ============================================================
@@ -315,6 +765,12 @@ async def background_simulation_loop():
 
             # Update optical-network telemetry
             telemetry_provider.tick()
+            if (
+                telemetry_provider.source_mode == "nokia"
+                and telemetry_provider.nokia_adapter.is_historical_csv
+            ):
+                await asyncio.sleep(1.0)
+                continue
 
             # Learn per-device normal behaviour before downstream detection.
             for device_id, device in telemetry_provider.get_devices().items():
@@ -436,7 +892,13 @@ def get_traffic_prediction(
 
     # Never expose simulator/model output while a selected source has no
     # telemetry. The UI uses the empty prediction to render a true blank state.
-    if not telemetry_provider.get_devices():
+    if (
+        not telemetry_provider.get_devices()
+        or (
+            telemetry_provider.source_mode == "nokia"
+            and telemetry_provider.nokia_adapter.is_historical_csv
+        )
+    ):
         return TrafficPrediction(
             horizon=horizon,
             timestamps=[],
@@ -455,7 +917,13 @@ def get_traffic_prediction(
 )
 def get_anomalies():
 
-    if not telemetry_provider.get_devices():
+    if (
+        not telemetry_provider.get_devices()
+        or (
+            telemetry_provider.source_mode == "nokia"
+            and telemetry_provider.nokia_adapter.is_historical_csv
+        )
+    ):
         return []
 
     return ml_engine.detect_anomalies()
@@ -677,6 +1145,7 @@ def get_telemetry_source():
 
 def _telemetry_source_status() -> dict:
     is_nokia = telemetry_provider.source_mode == "nokia"
+    ingestion_status = telemetry_provider.nokia_adapter.get_uploaded_csv_status()
     return {
         "source": telemetry_provider.source_mode,
         "device_count": len(telemetry_provider.get_devices()),
@@ -688,6 +1157,7 @@ def _telemetry_source_status() -> dict:
             telemetry_provider.nokia_adapter.last_refresh_error if is_nokia else None
         ),
         "data_origin": telemetry_provider.nokia_adapter.data_origin if is_nokia else "simulator",
+        "csv_ingestion_status": ingestion_status if is_nokia else None,
     }
 
 
@@ -707,6 +1177,11 @@ def refresh_telemetry():
     return {"status": status["refresh_status"], **status}
 
 
+@app.get("/api/telemetry/nokia/csv-ingest-status")
+def get_nokia_csv_ingest_status():
+    return telemetry_provider.nokia_adapter.get_uploaded_csv_status()
+
+
 # ============================================================
 # FCAPS
 # ============================================================
@@ -717,6 +1192,11 @@ def refresh_telemetry():
 )
 def get_fcaps_alarms():
 
+    if (
+        telemetry_provider.source_mode == "nokia"
+        and telemetry_provider.nokia_adapter.is_historical_csv
+    ):
+        return []
     return fcaps_manager.get_fault_alarms()
 
 
@@ -743,6 +1223,14 @@ def acknowledge_alarm(
 )
 def get_energy_accounting():
 
+    if (
+        telemetry_provider.source_mode == "nokia"
+        and telemetry_provider.nokia_adapter.is_historical_csv
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Energy savings are not measured or estimated from historical project CSV files.",
+        )
     return fcaps_manager.get_energy_accounting()
 
 
@@ -752,6 +1240,11 @@ def get_energy_accounting():
 )
 def get_security_logs():
 
+    if (
+        telemetry_provider.source_mode == "nokia"
+        and telemetry_provider.nokia_adapter.is_historical_csv
+    ):
+        return []
     return fcaps_manager.security_logs
 
 
@@ -1024,6 +1517,14 @@ def get_simulation_history():
 def execute_digital_twin_action(
     req: WhatIfSimulationRequest
 ):
+    if telemetry_provider.source_mode == "nokia":
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Nokia telemetry is read-only. What-If and quantum analyses are "
+                "simulations and cannot execute actions on a device."
+            ),
+        )
 
     res = (
         digital_twin_engine

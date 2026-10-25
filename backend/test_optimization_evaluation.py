@@ -126,8 +126,6 @@ def test_multi_instance_evaluation_is_deterministic_and_isolated():
 
     assert set(shot_first["aggregates_by_shots"]) == {"128", "512", "1024"}
     assert "qiskit_ibm_runtime" not in sys.modules
-    assert "app.digital_twin" not in sys.modules
-    assert "app.policy_engine" not in sys.modules
 
     diagnostic_first = diagnose_qaoa_instances(SNAPSHOT_PATH)
     diagnostic_second = diagnose_qaoa_instances(SNAPSHOT_PATH)

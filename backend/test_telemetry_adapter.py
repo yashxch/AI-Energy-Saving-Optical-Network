@@ -614,4 +614,5 @@ def test_provider_switches_sources():
     assert len(telemetry_provider.get_devices()) == 100
     telemetry_provider.set_source_mode("nokia")
     assert telemetry_provider.source_mode == "nokia"
+    assert set(telemetry_provider.get_devices()) == {"NOKIA-001", "NOKIA-003"}
     telemetry_provider.set_source_mode("simulator")

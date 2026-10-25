@@ -227,7 +227,6 @@ class NokiaTelemetryNormalizer:
         power = value("power_consumption_w", 0.0)
         voltage = self._number(raw.get("VOLTAGE-V", raw.get("voltage_v")), 12.0)
         current = self._number(raw.get("CURRENT-A", raw.get("current_a")), power / voltage if voltage else 0.0)
-        pre_fec = value("pre_fec_ber", 2.4e-5)
         return Telemetry(
             tx_power_dbm=value("tx_power_dbm", 3.5),
             rx_power_dbm=value("rx_power_dbm", -11.8),
@@ -235,8 +234,8 @@ class NokiaTelemetryNormalizer:
             laser_temp_c=self._number(raw.get("TEMP-LASER", raw.get("laser_temp_c")), 28.5),
             dsp_temp_c=value("dsp_temp_c", 54.0),
             module_temp_c=self._number(raw.get("TEMP-MODULE", raw.get("module_temp_c")), 38.0),
-            ber=self._number(raw.get("BER", raw.get("ber")), pre_fec * 1e-4),
-            pre_fec_ber=pre_fec,
+            ber=self._number_from(raw, ("BER", "ber")),
+            pre_fec_ber=value("pre_fec_ber", 2.4e-5),
             post_fec_ber=value("post_fec_ber", 0.0),
             q_factor_db=value("q_factor_db", 14.8),
             osnr_db=value("osnr_db", 26.4),
@@ -356,6 +355,8 @@ class NokiaTelemetryNormalizer:
             default="Transponder-800G",
         ).lower()
         type_map = {
+            "s4x400": DeviceType.TRANSPONDER,
+            "smf6": DeviceType.SMF6,
             "transponder-800g": DeviceType.TRANSPONDER_800G,
             "transponder": DeviceType.TRANSPONDER_800G,
             "edfa": DeviceType.EDFA,
@@ -366,9 +367,13 @@ class NokiaTelemetryNormalizer:
             "filter": DeviceType.FILTER_CARD,
             "network element": DeviceType.NETWORK_ELEMENT,
         }
-        device_type = next((v for k, v in type_map.items() if k in type_text), DeviceType.TRANSPONDER_800G)
-        mode_text = self._text(raw, "power_mode", "POWER-MODE", default=PowerMode.NORMAL.value).lower()
-        mode = next((m for m in PowerMode if m.value.lower() == mode_text), PowerMode.NORMAL)
+        device_type = next(
+            (v for k, v in type_map.items() if k in type_text),
+            DeviceType.UNKNOWN if "csv_history" in raw else DeviceType.TRANSPONDER_800G,
+        )
+        default_mode = PowerMode.UNKNOWN if "csv_history" in raw else PowerMode.NORMAL
+        mode_text = self._text(raw, "power_mode", "POWER-MODE", default=default_mode.value).lower()
+        mode = next((m for m in PowerMode if m.value.lower() == mode_text), default_mode)
         health_text = self._text(raw, "health", "HEALTH", default=HealthState.NORMAL.value).lower()
         health = next((h for h in HealthState if h.value.lower() == health_text), HealthState.NORMAL)
         return Device(
@@ -408,7 +413,7 @@ class NokiaTelemetryNormalizer:
                 default="UNKNOWN",
             ),
             target_node=self._identity_text(raw, "target_node", "targetNode", "TARGET-NODE", default="UNKNOWN"),
-            wavelength_nm=self._number(raw.get("wavelength_nm", raw.get("WAVELENGTH-NM")), 1550.0),
+            wavelength_nm=self._number_from(raw, ("wavelength_nm", "WAVELENGTH-NM")),
             power_mode=mode,
             health=health,
             telemetry=self.normalize_telemetry(raw),

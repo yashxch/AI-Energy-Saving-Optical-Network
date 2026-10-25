@@ -5,21 +5,26 @@ import time
 
 class DeviceType(str, Enum):
     TRANSPONDER_800G = "Transponder-800G"
+    TRANSPONDER = "Transponder"
+    SMF6 = "SMF6"
     EDFA = "EDFA Amplifier"
     ROADM = "ROADM WSS"
     FILTER_CARD = "Filter Card"
     NETWORK_ELEMENT = "Network Element"
+    UNKNOWN = "Unknown"
 
 class PowerMode(str, Enum):
     NORMAL = "Normal"
     ECO = "Eco"
     SLEEP = "Sleep"
     LOW_GAIN = "Low Gain"
+    UNKNOWN = "Unknown"
 
 class HealthState(str, Enum):
     NORMAL = "Normal"
     WARNING = "Warning"
     CRITICAL = "Critical"
+    UNKNOWN = "Unknown"
 
 class Telemetry(BaseModel):
     tx_power_dbm: float = Field(..., description="Tx Optical Power in dBm")
@@ -28,7 +33,7 @@ class Telemetry(BaseModel):
     laser_temp_c: float = Field(..., description="Laser Temperature in °C")
     dsp_temp_c: float = Field(..., description="DSP Temperature in °C")
     module_temp_c: float = Field(..., description="Module Temperature in °C")
-    ber: float = Field(..., description="Bit Error Rate")
+    ber: Optional[float] = Field(None, description="Bit Error Rate when supplied by telemetry")
     pre_fec_ber: float = Field(..., description="Pre-FEC BER")
     post_fec_ber: float = Field(..., description="Post-FEC BER")
     q_factor_db: float = Field(..., description="Q-factor in dB")
@@ -120,7 +125,7 @@ class Device(BaseModel):
     type: DeviceType
     node_location: str
     target_node: str
-    wavelength_nm: float
+    wavelength_nm: Optional[float]
     power_mode: PowerMode
     health: HealthState
     telemetry: Telemetry
@@ -296,7 +301,7 @@ class DigitalTwinDevice(BaseModel):
     tx_power_dbm: float
     rx_power_dbm: float
     osnr_db: float
-    ber: float
+    ber: Optional[float] = None
     pre_fec_ber: float
     q_factor_db: float
     temperature_c: float

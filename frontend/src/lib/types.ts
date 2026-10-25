@@ -1,6 +1,6 @@
-export type DeviceType = "Transponder-800G" | "EDFA Amplifier" | "ROADM WSS" | "Filter Card" | "Network Element";
-export type PowerMode = "Normal" | "Eco" | "Sleep" | "Low Gain";
-export type HealthState = "Normal" | "Warning" | "Critical";
+export type DeviceType = "Transponder-800G" | "Transponder" | "SMF6" | "EDFA Amplifier" | "ROADM WSS" | "Filter Card" | "Network Element" | "Unknown";
+export type PowerMode = "Normal" | "Eco" | "Sleep" | "Low Gain" | "Unknown";
+export type HealthState = "Normal" | "Warning" | "Critical" | "Unknown";
 export type ActionType = "Sleep idle transponder" | "Wake transponder" | "Reduce amplifier gain" | "Disable idle wavelength" | "Re-route traffic" | "Restore device" | string;
 
 export interface TelemetrySourceStatus {
@@ -10,6 +10,64 @@ export interface TelemetrySourceStatus {
   last_refresh_error?: string | null;
   data_origin?: string;
   nokia_execution_enabled?: boolean;
+  csv_ingestion_status?: CsvIngestionStatus | null;
+}
+
+export interface CsvIngestionDeviceStatus {
+  filename: string;
+  device_id: string;
+  device_name: string;
+  accepted_rows: number;
+  rejected_rows: number;
+  skipped_rows: number;
+  latest_timestamp: string;
+  assumed_timezone: string;
+  rejected_reasons: string[];
+  power_saving_status?: string;
+  power_saving_reason?: string;
+  observation_duration_seconds?: number;
+  telemetry_age_seconds?: number;
+  telemetry_stale?: boolean;
+  metric_mapping: Record<string, CsvMetricMapping>;
+}
+
+export interface CsvMetricMapping {
+  original_header: string;
+  internal_field: string;
+  display_label: string;
+  unit: string;
+  data_type: string;
+  validation_rules: string;
+  required: boolean;
+  chartable: boolean;
+  alertable: boolean;
+  power_calc: boolean;
+}
+
+export interface CsvTelemetryRecord {
+  timestamp: string;
+  timestamp_utc: string;
+  timestamp_epoch: number;
+  device_id: string;
+  device_name: string;
+  node_location: string;
+  device_type: string;
+  power_mode: string;
+  original_metrics: Record<string, string>;
+  metrics: Record<string, number>;
+}
+
+export interface CsvPreviewResponse extends CsvIngestionDeviceStatus {
+  latest_metrics: Record<string, number>;
+}
+
+export interface CsvIngestionStatus {
+  ingestion_status: string;
+  device_count: number;
+  devices: Record<string, CsvIngestionDeviceStatus>;
+  last_ingested_at: string | null;
+  record_limit: number;
+  size_limit_bytes: number;
 }
 
 export interface Telemetry {
@@ -19,7 +77,7 @@ export interface Telemetry {
   laser_temp_c: number;
   dsp_temp_c: number;
   module_temp_c: number;
-  ber: number;
+  ber: number | null;
   pre_fec_ber: number;
   post_fec_ber: number;
   q_factor_db: number;
@@ -110,7 +168,7 @@ export interface Device {
   type: DeviceType;
   node_location: string;
   target_node: string;
-  wavelength_nm: number;
+  wavelength_nm: number | null;
   power_mode: PowerMode;
   health: HealthState;
   telemetry: Telemetry;
@@ -214,7 +272,7 @@ export interface DigitalTwinDevice {
   tx_power_dbm: number;
   rx_power_dbm: number;
   osnr_db: number;
-  ber: number;
+  ber: number | null;
   pre_fec_ber: number;
   q_factor_db: number;
   temperature_c: number;
@@ -336,12 +394,84 @@ export interface QuantumSolution {
   raw_bitstring: string;
   variable_bitstring: string;
   device_bitstring: string;
+  variable_values?: Record<string, string>;
   selected_devices: QuantumSelectedDevice[];
   num_selected: number;
   total_power_saving_w: number;
   feasible: boolean;
   shots: number;
   probability: number;
+}
+
+export interface LocalQaoaAnalysis {
+  status: 'success' | 'no_candidates' | 'no_feasible_solution';
+  method: 'local_qaoa_statevector';
+  candidate_count: number;
+  candidates: QuantumSelectedDevice[];
+  selected_devices: QuantumSelectedDevice[];
+  num_selected: number;
+  total_power_saving_w: number;
+  feasible: boolean;
+  highest_probability?: number;
+  statevector_qubits?: number;
+  beta: number;
+  gamma: number;
+  message: string;
+  source: 'simulator' | 'nokia';
+  data_origin: string;
+  minimum_observation_seconds: number;
+  observation_durations_seconds: number[];
+  qpu_used: false;
+  execution_performed: false;
+}
+
+export interface QuantumRecommendation extends QuantumSelectedDevice {
+  estimated_power_saving_w: number;
+  validation_status: string;
+  policy_checks: PolicyCheckItem[];
+}
+
+export interface QuantumOptimizationRun {
+  run_id?: string;
+  job_id?: string;
+  execution_method: 'ibm_qpu' | 'local_simulator';
+  backend?: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'rejected' | 'no_candidates' | 'error';
+  job_status?: string;
+  source?: 'simulator' | 'nokia';
+  data_origin?: string;
+  submitted_at?: string;
+  completed_at?: string;
+  shots?: number;
+  requested_shots?: number;
+  eligible_candidate_count?: number;
+  selected_action_count?: number;
+  qubo_variables?: number;
+  qubo_variable_names?: string[];
+  candidate_variable_names?: string[];
+  measurement_bit_order?: string;
+  qaoa_beta?: number;
+  qaoa_gamma?: number;
+  metadata_persisted?: boolean;
+  metadata_persistence_error?: string;
+  max_actions?: number;
+  num_qubits?: number;
+  circuit_depth?: number;
+  qpu_submitted?: boolean;
+  metadata_available?: boolean;
+  result_retrieved?: boolean;
+  measurement_counts?: Record<string, number>;
+  qpu_solution?: QuantumSolution | null;
+  digital_twin?: QuantumDigitalTwinValidation | null;
+  recommendations?: QuantumRecommendation[];
+  rejections?: Array<{ device_id?: string; reason: string; result?: string }>;
+  total_estimated_power_saving_w?: number;
+  validation_status?: string;
+  current_source?: string;
+  message: string;
+  error_type?: string;
+  error?: string;
+  execution_performed: false;
 }
 
 export interface QuantumQpuResult {

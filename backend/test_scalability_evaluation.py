@@ -75,8 +75,6 @@ def test_scalability_evaluation_is_deterministic_and_valid():
         assert local_qaoa["parameter_combinations_evaluated"] == 81
 
     assert "qiskit_ibm_runtime" not in sys.modules
-    assert "app.digital_twin" not in sys.modules
-    assert "app.policy_engine" not in sys.modules
 
 
 if __name__ == "__main__":

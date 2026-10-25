@@ -9,7 +9,12 @@ from app.digital_twin import digital_twin_engine
 from app.policy_engine import policy_engine
 from app.models import ActionType, WhatIfSimulationRequest, SimulationResult, PowerMode
 
-def test_digital_twin_component():
+def test_digital_twin_component(monkeypatch):
+    from app.telemetry import telemetry_provider
+
+    monkeypatch.setattr(telemetry_provider, "_source_mode", "simulator")
+    monkeypatch.setattr(telemetry_provider, "adapter", telemetry_provider.simulator_adapter)
+
     print("==================================================")
     print("Testing Digital Twin Engine & What-If Simulation")
     print("==================================================")

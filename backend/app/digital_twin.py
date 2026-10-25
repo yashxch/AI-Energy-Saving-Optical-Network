@@ -69,7 +69,11 @@ class DigitalTwinEngine:
         active_count = 0
         sleep_count = 0
 
-        for dev_id, dev in telemetry_provider.get_devices().items():
+        current_devices = telemetry_provider.get_devices()
+        for stale_device_id in self.device_states.keys() - current_devices.keys():
+            del self.device_states[stale_device_id]
+
+        for dev_id, dev in current_devices.items():
             t = dev.telemetry
             freshness = round(now - t.timestamp, 2)
             
